@@ -1,0 +1,92 @@
+#include <MIDIUSB.h>
+
+uint8_t gateHigh = 0x00;
+uint8_t gateLow = 0x00;
+uint8_t previousGate = 0x00;
+
+int D0 = 0;
+int D1 = 1;
+int D2 = 2;
+int D3 = 3;
+int D4 = 4;
+int D5 = 5;
+int D6 = 6;
+int D7 = 7;
+
+const int gateInputs = 8;
+int gateLevels[gateInputs];
+int digitalInputs[gateInputs] = {D0, D1, D2, D3, D4, D5, D6, D7};
+int MIDIchannels[gateInputs] = {0, 1, 2, 3, 4, 5, 6, 7};
+
+void setup() {
+  // put your setup code here, to run once:
+  pinMode (D0, INPUT);
+  pinMode (D1, INPUT);
+  pinMode (D2, INPUT);
+  pinMode (D3, INPUT);
+  pinMode (D4, INPUT);
+  pinMode (D5, INPUT);
+  pinMode (D6, INPUT);
+  pinMode (D7, INPUT);
+}
+
+void usbCC(byte channel, byte control, byte value)
+{
+  midiEventPacket_t event = {0x0B, 0XB0 | channel, control, value};
+  
+  MidiUSB.sendMIDI(event);
+}
+
+void noteOn(byte channel, byte pitch, byte velocity) {
+
+  midiEventPacket_t noteOnEvent = {0x09, 0x90 | channel, pitch,  velocity};
+
+  MidiUSB.sendMIDI(noteOnEvent);
+}
+
+void noteOff(byte channel, byte pitch, byte velocity) {
+
+  midiEventPacket_t noteOffEvent = {0x08, 0x80 | channel, pitch, velocity};
+
+  MidiUSB.sendMIDI(noteOffEvent);
+}
+
+void readGates()
+{
+  for (int i = 0; i < gateInputs; i++)
+  {
+    if (digitalRead(digitalInputs[i]) == HIGH)
+    {
+      bitWrite(gateHigh, i, 1);
+      delay(50);
+    } else
+    {
+      bitWrite (gateHigh, i, 0);
+    }
+  }
+  for (int i = 0; i < gateInputs; i++)
+  {
+    if (bitRead(gateHigh, i) != bitRead(previousGate, i))
+    {
+      if (bitRead(gateHigh, i))
+      {
+        bitWrite (previousGate, i, 1);
+        noteOn(MIDIchannels[i], 48,  64 );
+        MidiUSB.flush();
+      }
+      else
+      {
+        bitWrite(previousGate, i, 0);
+        noteOff(MIDIchannels[i], 48, 0 );
+        MidiUSB.flush();
+
+      }
+    }
+  }
+
+}
+
+void loop ()
+{
+  readGates();
+}
